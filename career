@@ -1,0 +1,2433 @@
+<!doctype html>
+<html lang="ja" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAREER QUEST - キャリアコンサルタントRPG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    #app-container {
+      width: 100%;
+      height: 100%;
+      margin: 0 auto;
+      max-width: 480px;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(102, 126, 234, 0.5); }
+      50% { box-shadow: 0 0 30px rgba(102, 126, 234, 0.8); }
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    
+    @keyframes shatter {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.5) rotate(20deg); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    @keyframes sparkle {
+      0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
+      50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+    }
+    
+    @keyframes attackForward {
+      0% { transform: translateX(0) scale(1); }
+      50% { transform: translateX(-30px) scale(1.15); }
+      100% { transform: translateX(0) scale(1); }
+    }
+    
+    @keyframes damaged {
+      0% { transform: translateX(0) rotate(0deg); }
+      25% { transform: translateX(15px) rotate(5deg); }
+      50% { transform: translateX(-15px) rotate(-5deg); }
+      75% { transform: translateX(10px) rotate(3deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.8s ease-out;
+    }
+    
+    .slide-up {
+      animation: slideUp 0.6s ease-out;
+    }
+    
+    .glow-effect {
+      animation: glow 2s infinite;
+    }
+    
+    .shake-effect {
+      animation: shake 0.5s ease-out;
+    }
+    
+    .attack-effect {
+      animation: attackForward 0.4s ease-out;
+    }
+    
+    .damage-effect {
+      animation: damaged 0.6s ease-out;
+    }
+    
+    .shatter-effect {
+      animation: shatter 0.8s ease-out forwards;
+    }
+    
+    .pulse-effect {
+      animation: pulse 2s infinite;
+    }
+    
+    .sparkle-effect {
+      animation: sparkle 2s infinite;
+    }
+    
+    .gradient-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .dialogue-box {
+      background: rgba(22, 33, 62, 0.95);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+    
+    .skill-card {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .skill-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .skill-card.locked {
+      opacity: 0.5;
+      filter: grayscale(0.8);
+    }
+    
+    .skill-tier-1 { border-left: 4px solid #10b981; }
+    .skill-tier-2 { border-left: 4px solid #3b82f6; }
+    .skill-tier-3 { border-left: 4px solid #8b5cf6; }
+    .skill-tier-4 { border-left: 4px solid #f59e0b; }
+    .skill-tier-5 { border-left: 4px solid #ef4444; }
+    
+    .choice-button {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    .choice-button:hover:not(:disabled) {
+      transform: scale(1.05);
+      filter: brightness(1.1);
+    }
+    
+    .choice-button:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+    
+    .choice-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    #skill-scroll-container::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .skill-card-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .skill-card-btn:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app-container" class="h-full w-full overflow-hidden">
+   <div id="app" class="h-full w-full relative"></div>
+  </div>
+  <script>
+    const defaultConfig = {
+      background_color: "#0f0f23",
+      surface_color: "#16213e",
+      text_color: "#eef1ff",
+      primary_action_color: "#667eea",
+      secondary_action_color: "#764ba2",
+      font_family: "Noto Sans JP",
+      font_size: 18,
+      main_title: "CAREER QUEST",
+      subtitle: "キャリアコンサルタントRPG",
+      tagline: "対話が世界を変える",
+      start_button: "はじめる",
+      choice_empathy: "共感する",
+      choice_insight: "問いを投げる",
+      choice_reframe: "視点を変える"
+    };
+
+    // スキルツリーデータベース
+    const skillDatabase = {
+      // Lv1-20: 初級・分析攻撃期
+      lifeline_slash: { id: 'lifeline_slash', name: 'ライフライン・スラッシュ', level: 1, tier: 1, type: 'empathy', icon: '⚔️', damage: 25, effect: '弱点属性を可視化', description: '過去イベントを斬り、敵の弱点を暴く', soundType: 'attack' },
+      will_burst: { id: 'will_burst', name: 'ウィル・バースト', level: 2, tier: 1, type: 'insight', icon: '💥', damage: 20, effect: '意欲ダメージ', description: '意欲の力で小ダメージ', soundType: 'magic' },
+      can_shield: { id: 'can_shield', name: 'キャン・シールド', level: 3, tier: 1, type: 'empathy', icon: '🛡️', damage: 0, effect: '自信バリア展開', description: '次ターンのダメージ軽減', soundType: 'defense' },
+      must_pressure: { id: 'must_pressure', name: 'マスト・プレッシャー', level: 4, tier: 1, type: 'insight', icon: '⚡', damage: 30, effect: '義務依存の敵に追加ダメージ', description: '「〜すべき」思考を撃つ', soundType: 'attack' },
+      wcm_triple: { id: 'wcm_triple', name: 'WCM三連撃', level: 5, tier: 1, type: 'reframe', icon: '🎯', damage: 45, effect: 'バランス型3連続攻撃', description: 'Will-Can-Must を統合', soundType: 'attack' },
+      
+      resume_shield: { id: 'resume_shield', name: '履歴書シールド', level: 6, tier: 1, type: 'empathy', icon: '📄', damage: 0, effect: '他者評価ダメージ軽減', description: '実績で自己を守る', soundType: 'defense' },
+      intro_strike: { id: 'intro_strike', name: '自己紹介の先制攻撃', level: 7, tier: 1, type: 'insight', icon: '👋', damage: 35, effect: '初期バフ獲得', description: '対話の主導権を握る', soundType: 'attack' },
+      listening_stance: { id: 'listening_stance', name: '傾聴の構え', level: 8, tier: 1, type: 'empathy', icon: '👂', damage: 0, effect: 'カウンター率上昇', description: '相手の言葉を受け止める', soundType: 'defense' },
+      question_arrow: { id: 'question_arrow', name: '質問の矢', level: 9, tier: 1, type: 'insight', icon: '🏹', damage: 28, effect: '思考ロック解除', description: '問いで固定観念を砕く', soundType: 'attack' },
+      deep_drill: { id: 'deep_drill', name: '深掘りドリル', level: 10, tier: 1, type: 'insight', icon: '🔨', damage: 40, effect: '弱点倍率UP', description: '核心まで掘り下げる', soundType: 'attack' },
+      
+      career_anchor: { id: 'career_anchor', name: 'キャリア・アンカー', level: 11, tier: 1, type: 'reframe', icon: '⚓', damage: 30, effect: '行動不能付与', description: '価値観の錨で敵を固定', soundType: 'magic' },
+      value_sort: { id: 'value_sort', name: '価値観の選別', level: 12, tier: 1, type: 'reframe', icon: '🎴', damage: 35, effect: 'バフ解除', description: '優先順位を整理する', soundType: 'magic' },
+      job_card_log: { id: 'job_card_log', name: 'ジョブ・カード記録', level: 13, tier: 1, type: 'insight', icon: '📝', damage: 25, effect: 'ログ獲得（分析精度UP）', description: '経験を記録し可視化', soundType: 'magic' },
+      skillset_check: { id: 'skillset_check', name: 'スキルセット点検', level: 14, tier: 1, type: 'insight', icon: '🔍', damage: 30, effect: '攻撃力再計算', description: '持てるスキルを棚卸し', soundType: 'magic' },
+      interest_spark: { id: 'interest_spark', name: '興味関心の火種', level: 15, tier: 1, type: 'empathy', icon: '🔥', damage: 50, effect: '継続ダメージ', description: '情熱が徐々に燃え広がる', soundType: 'magic' },
+      
+      strength_excavate: { id: 'strength_excavate', name: '強みの発掘', level: 16, tier: 1, type: 'empathy', icon: '⛏️', damage: 35, effect: 'クリティカル率UP', description: '隠れた才能を掘り起こす', soundType: 'attack' },
+      weakness_transform: { id: 'weakness_transform', name: '短所の転換', level: 17, tier: 1, type: 'reframe', icon: '🔄', damage: 40, effect: 'デバフ反転', description: '弱みを強みに転換する', soundType: 'magic' },
+      success_wave: { id: 'success_wave', name: '成功体験の波動', level: 18, tier: 1, type: 'empathy', icon: '🌊', damage: 30, effect: '全体回復', description: '過去の成功が勇気を与える', soundType: 'defense' },
+      failure_nourish: { id: 'failure_nourish', name: '失敗の糧', level: 19, tier: 1, type: 'reframe', icon: '🌱', damage: 25, effect: 'HP回復＋耐性UP', description: '失敗から学び成長する', soundType: 'defense' },
+      origin_return: { id: 'origin_return', name: '初心忘るべからず', level: 20, tier: 1, type: 'empathy', icon: '🎐', damage: 45, effect: '原点回帰ダメージ', description: '原点に戻り力を取り戻す', soundType: 'magic' }
+    };
+
+    let playerData = null;
+    let currentEnemy = null;
+    let currentScene = 'title';
+    let battleState = {
+      enemyHp: 100,
+      enemyMaxHp: 100,
+      anxiety: 50,
+      hope: 50,
+      turn: 0,
+      messages: [],
+      shield: 0,
+      counter: false
+    };
+    let isProcessing = false;
+    let isRendering = false;
+
+    const enemies = {
+      anxiety: {
+        id: 'anxiety',
+        name: "不安の化身",
+        catchphrase: "未来への恐れが形を持って現れた",
+        maxHp: 120,
+        weakness: "empathy",
+        dialogue: {
+          intro: "「君に何ができる？ 失敗するの決まってる」",
+          attack: "「周りの期待に応えられない」",
+          weak: "「でも... 不安は悪いことで...」",
+          defeat: "「不安とは、可能性への扉だった」"
+        },
+        background: "linear-gradient(180deg, #0f0f23 0%, #1a1a3e 100%)"
+      },
+      overwork: {
+        id: 'overwork',
+        name: "重労働の巨人",
+        catchphrase: "終わりなき労働が立ちはだかる",
+        maxHp: 150,
+        weakness: "insight",
+        dialogue: {
+          intro: "「休むな。止まるな。働き続けろ」",
+          attack: "「お前の時間も人生も、全て仕事のものだ」",
+          weak: "「労働基準... そんなもの...」",
+          defeat: "「働くとは... 人間のためのもの...」"
+        },
+        background: "linear-gradient(180deg, #1a1a2e 0%, #2d2d44 100%)"
+      },
+      selfDoubt: {
+        id: 'selfDoubt',
+        name: "自己否定の声",
+        catchphrase: "内なる批判者が目を覚ます",
+        maxHp: 100,
+        weakness: "reframe",
+        dialogue: {
+          intro: "「お前には価値がない。才能もない」",
+          attack: "「誰もお前を認めない」",
+          weak: "「そう... 評価軸は一つじゃ...」",
+          defeat: "「価値とは、自分で決めるものだった」"
+        },
+        background: "linear-gradient(180deg, #1a1a2e 0%, #2d2d44 100%)"
+      },
+      burnout: {
+        id: 'burnout',
+        name: "燃え尽きた炎",
+        catchphrase: "情熱が灰となり立ち上がる",
+        maxHp: 110,
+        weakness: "empathy",
+        dialogue: {
+          intro: "「もう何も感じない。何も動けない」",
+          attack: "「頑張る意味なんてなかった」",
+          weak: "「でも... まだ小さな火種が...」",
+          defeat: "「情熱は... また燃やせるもの...」"
+        },
+        background: "linear-gradient(180deg, #2d1b1e 0%, #1a1a2e 100%)"
+      },
+      conformity: {
+        id: 'conformity',
+        name: "同調圧力の群れ",
+        catchphrase: "無数の声が一つに溶け合う",
+        maxHp: 130,
+        weakness: "reframe",
+        dialogue: {
+          intro: "「みんなそうしてる。お前だけ違うの？」",
+          attack: "「空気読めよ。協調性ないな」",
+          weak: "「でも... 個性って...」",
+          defeat: "「多様性こそが... 力だった...」"
+        },
+        background: "linear-gradient(180deg, #1a1a2e 0%, #2d2244 100%)"
+      },
+      judgment: {
+        id: 'judgment',
+        name: "裁きの天秤",
+        catchphrase: "評価と査定の化身が君臨する",
+        maxHp: 140,
+        weakness: "insight",
+        dialogue: {
+          intro: "「お前の価値を測定する。合格点には届かない」",
+          attack: "「評価D。能力不足」",
+          weak: "「数値化できないものが...」",
+          defeat: "「人の価値は... 点数じゃない...」"
+        },
+        background: "linear-gradient(180deg, #2d1b1e 0%, #1a2332 100%)"
+      },
+      maze: {
+        id: 'maze',
+        name: "迷宮の番人",
+        catchphrase: "無限の選択肢が道を塞ぐ",
+        maxHp: 125,
+        weakness: "insight",
+        dialogue: {
+          intro: "「どの道を選ぶ？ 全て行き止まりだが」",
+          attack: "「正解はない。永遠に迷い続けろ」",
+          weak: "「道は... 自分で作れる...」",
+          defeat: "「迷うことも... 一つの答え...」"
+        },
+        background: "linear-gradient(180deg, #1a2e1a 0%, #1a1a2e 100%)"
+      },
+      ideal: {
+        id: 'ideal',
+        name: "理想と現実の亀裂",
+        catchphrase: "輝く夢と崩れる現実が交錯する",
+        maxHp: 115,
+        weakness: "reframe",
+        dialogue: {
+          intro: "「理想は美しい。だが現実は醜い」",
+          attack: "「夢見た未来は幻想だった」",
+          weak: "「でも... 理想と現実は...」",
+          defeat: "「両方あって... 人は進める...」"
+        },
+        background: "linear-gradient(180deg, #2d2244 0%, #1a1a2e 100%)"
+      },
+      role: {
+        id: 'role',
+        name: "役割の鎧",
+        catchphrase: "肩書きと責任が重く圧し掛かる",
+        maxHp: 135,
+        weakness: "empathy",
+        dialogue: {
+          intro: "「お前は〇〇であるべきだ。それ以外は許されない」",
+          attack: "「役割を果たせ。期待に応えろ」",
+          weak: "「でも... 役割の下には...」",
+          defeat: "「人は... 役割だけじゃない...」"
+        },
+        background: "linear-gradient(180deg, #1a2332 0%, #2d2d44 100%)"
+      },
+      void: {
+        id: 'void',
+        name: "虚無の深淵",
+        catchphrase: "意味の喪失が暗闇を呼ぶ",
+        maxHp: 145,
+        weakness: "empathy",
+        dialogue: {
+          intro: "「全てが無意味。何をしても同じ」",
+          attack: "「存在する意味など、ない」",
+          weak: "「でも... 小さな意味が...」",
+          defeat: "「意味は... 自分で見つけるもの...」"
+        },
+        background: "linear-gradient(180deg, #0f0f23 0%, #1a1a3e 100%)"
+      }
+    };
+
+    // 🎵 サウンドシステム
+    
+    let bgmContext = null;
+    let currentBgm = null;
+    let bgmGainNode = null;
+    let bgmEnabled = true;
+    let bgmVolume = 0.3;
+    
+    // BGM制御
+    function stopBgm() {
+      if (currentBgm) {
+        try {
+          currentBgm.stop();
+        } catch(e) {}
+        currentBgm = null;
+      }
+    }
+    
+    function setBgmVolume(volume) {
+      bgmVolume = Math.max(0, Math.min(1, volume));
+      if (bgmGainNode) {
+        bgmGainNode.gain.setValueAtTime(bgmVolume, bgmContext.currentTime);
+      }
+    }
+    
+    // タイトル画面BGM - 壮大で希望に満ちた旋律
+    function playTitleBgm() {
+      if (!bgmEnabled) return;
+      stopBgm();
+      
+      bgmContext = new (window.AudioContext || window.webkitAudioContext)();
+      bgmGainNode = bgmContext.createGain();
+      bgmGainNode.gain.setValueAtTime(bgmVolume, bgmContext.currentTime);
+      bgmGainNode.connect(bgmContext.destination);
+      
+      const now = bgmContext.currentTime;
+      const tempo = 0.5; // ゆったりとしたテンポ
+      
+      // メロディーライン: C Major スケールで希望的な旋律
+      const melody = [
+        {note: 523.25, start: 0, duration: tempo}, // C5
+        {note: 587.33, start: tempo, duration: tempo}, // D5
+        {note: 659.25, start: tempo * 2, duration: tempo}, // E5
+        {note: 783.99, start: tempo * 3, duration: tempo * 2}, // G5
+        {note: 659.25, start: tempo * 5, duration: tempo}, // E5
+        {note: 587.33, start: tempo * 6, duration: tempo}, // D5
+        {note: 523.25, start: tempo * 7, duration: tempo * 2}, // C5
+      ];
+      
+      melody.forEach(({note, start, duration}) => {
+        const osc = bgmContext.createOscillator();
+        const oscGain = bgmContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note, now + start);
+        oscGain.gain.setValueAtTime(0, now + start);
+        oscGain.gain.linearRampToValueAtTime(0.15, now + start + 0.05);
+        oscGain.gain.linearRampToValueAtTime(0, now + start + duration);
+        osc.connect(oscGain);
+        oscGain.connect(bgmGainNode);
+        osc.start(now + start);
+        osc.stop(now + start + duration);
+      });
+      
+      // ハーモニー: 温かみのあるコード進行
+      const chords = [
+        {notes: [261.63, 329.63, 392.00], start: 0, duration: tempo * 2}, // C major
+        {notes: [293.66, 369.99, 440.00], start: tempo * 2, duration: tempo * 2}, // D minor
+        {notes: [329.63, 392.00, 493.88], start: tempo * 4, duration: tempo * 2}, // E minor
+        {notes: [261.63, 329.63, 392.00], start: tempo * 6, duration: tempo * 3}, // C major
+      ];
+      
+      chords.forEach(({notes, start, duration}) => {
+        notes.forEach(note => {
+          const osc = bgmContext.createOscillator();
+          const oscGain = bgmContext.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(note, now + start);
+          oscGain.gain.setValueAtTime(0, now + start);
+          oscGain.gain.linearRampToValueAtTime(0.08, now + start + 0.1);
+          oscGain.gain.setValueAtTime(0.08, now + start + duration - 0.2);
+          oscGain.gain.linearRampToValueAtTime(0, now + start + duration);
+          osc.connect(oscGain);
+          oscGain.connect(bgmGainNode);
+          osc.start(now + start);
+          osc.stop(now + start + duration);
+        });
+      });
+      
+      // ループ設定
+      setTimeout(() => {
+        if (currentScene === 'title' && bgmEnabled) {
+          playTitleBgm();
+        }
+      }, tempo * 9 * 1000);
+      
+      currentBgm = { context: bgmContext };
+    }
+    
+    // バトルBGM - 緊張感のあるリズミカルな旋律
+    function playBattleBgm() {
+      if (!bgmEnabled) return;
+      stopBgm();
+      
+      bgmContext = new (window.AudioContext || window.webkitAudioContext)();
+      bgmGainNode = bgmContext.createGain();
+      bgmGainNode.gain.setValueAtTime(bgmVolume, bgmContext.currentTime);
+      bgmGainNode.connect(bgmContext.destination);
+      
+      const now = bgmContext.currentTime;
+      const tempo = 0.25; // 速いテンポ
+      
+      // メインリフ: A minor スケールで緊張感
+      const battleRiff = [
+        {note: 440.00, start: 0, duration: tempo * 0.8}, // A4
+        {note: 493.88, start: tempo, duration: tempo * 0.8}, // B4
+        {note: 523.25, start: tempo * 2, duration: tempo * 0.8}, // C5
+        {note: 587.33, start: tempo * 3, duration: tempo * 0.8}, // D5
+        {note: 523.25, start: tempo * 4, duration: tempo * 0.8}, // C5
+        {note: 493.88, start: tempo * 5, duration: tempo * 0.8}, // B4
+        {note: 440.00, start: tempo * 6, duration: tempo * 1.5}, // A4
+      ];
+      
+      battleRiff.forEach(({note, start, duration}) => {
+        const osc = bgmContext.createOscillator();
+        const oscGain = bgmContext.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(note, now + start);
+        oscGain.gain.setValueAtTime(0, now + start);
+        oscGain.gain.linearRampToValueAtTime(0.12, now + start + 0.01);
+        oscGain.gain.linearRampToValueAtTime(0, now + start + duration);
+        osc.connect(oscGain);
+        oscGain.connect(bgmGainNode);
+        osc.start(now + start);
+        osc.stop(now + start + duration);
+      });
+      
+      // ベースライン
+      const bassLine = [
+        {note: 110.00, start: 0, duration: tempo * 2}, // A2
+        {note: 130.81, start: tempo * 2, duration: tempo * 2}, // C3
+        {note: 146.83, start: tempo * 4, duration: tempo * 2}, // D3
+        {note: 110.00, start: tempo * 6, duration: tempo * 2}, // A2
+      ];
+      
+      bassLine.forEach(({note, start, duration}) => {
+        const osc = bgmContext.createOscillator();
+        const oscGain = bgmContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note, now + start);
+        oscGain.gain.setValueAtTime(0.15, now + start);
+        oscGain.gain.setValueAtTime(0.15, now + start + duration - 0.05);
+        oscGain.gain.linearRampToValueAtTime(0, now + start + duration);
+        osc.connect(oscGain);
+        oscGain.connect(bgmGainNode);
+        osc.start(now + start);
+        osc.stop(now + start + duration);
+      });
+      
+      // ループ設定
+      setTimeout(() => {
+        if ((currentScene === 'battle' || currentScene === 'battle-intro') && bgmEnabled) {
+          playBattleBgm();
+        }
+      }, tempo * 8 * 1000);
+      
+      currentBgm = { context: bgmContext };
+    }
+    
+    // 勝利BGM - 明るく華やかなファンファーレ
+    function playVictoryBgm() {
+      if (!bgmEnabled) return;
+      stopBgm();
+      
+      bgmContext = new (window.AudioContext || window.webkitAudioContext)();
+      bgmGainNode = bgmContext.createGain();
+      bgmGainNode.gain.setValueAtTime(bgmVolume, bgmContext.currentTime);
+      bgmGainNode.connect(bgmContext.destination);
+      
+      const now = bgmContext.currentTime;
+      
+      // ファンファーレ旋律
+      const fanfare = [
+        {note: 523.25, start: 0, duration: 0.3}, // C5
+        {note: 659.25, start: 0.3, duration: 0.3}, // E5
+        {note: 783.99, start: 0.6, duration: 0.3}, // G5
+        {note: 1046.50, start: 0.9, duration: 0.6}, // C6
+        {note: 783.99, start: 1.6, duration: 0.2}, // G5
+        {note: 1046.50, start: 1.8, duration: 0.8}, // C6
+      ];
+      
+      fanfare.forEach(({note, start, duration}) => {
+        const osc = bgmContext.createOscillator();
+        const oscGain = bgmContext.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(note, now + start);
+        oscGain.gain.setValueAtTime(0, now + start);
+        oscGain.gain.linearRampToValueAtTime(0.2, now + start + 0.02);
+        oscGain.gain.linearRampToValueAtTime(0, now + start + duration);
+        osc.connect(oscGain);
+        oscGain.connect(bgmGainNode);
+        osc.start(now + start);
+        osc.stop(now + start + duration);
+      });
+      
+      // キラキラエフェクト
+      for (let i = 0; i < 8; i++) {
+        const osc = bgmContext.createOscillator();
+        const oscGain = bgmContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000 + Math.random() * 1000, now + i * 0.15);
+        oscGain.gain.setValueAtTime(0, now + i * 0.15);
+        oscGain.gain.linearRampToValueAtTime(0.1, now + i * 0.15 + 0.01);
+        oscGain.gain.linearRampToValueAtTime(0, now + i * 0.15 + 0.3);
+        osc.connect(oscGain);
+        oscGain.connect(bgmGainNode);
+        osc.start(now + i * 0.15);
+        osc.stop(now + i * 0.15 + 0.3);
+      }
+      
+      currentBgm = { context: bgmContext };
+    }
+    
+    // 攻撃効果音（物理系スキル）
+    function playAttackSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // 斬撃音：鋭い高音から低音への急降下
+        const slashOsc = audioContext.createOscillator();
+        const slashGain = audioContext.createGain();
+        slashOsc.type = 'sawtooth';
+        slashOsc.frequency.setValueAtTime(1200, now);
+        slashOsc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+        slashGain.gain.setValueAtTime(0.4, now);
+        slashGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        slashOsc.connect(slashGain);
+        slashGain.connect(audioContext.destination);
+        slashOsc.start(now);
+        slashOsc.stop(now + 0.08);
+        
+        // 衝撃音：低音パンチ
+        const impactOsc = audioContext.createOscillator();
+        const impactGain = audioContext.createGain();
+        impactOsc.type = 'sine';
+        impactOsc.frequency.setValueAtTime(80, now + 0.05);
+        impactGain.gain.setValueAtTime(0.5, now + 0.05);
+        impactGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        impactOsc.connect(impactGain);
+        impactGain.connect(audioContext.destination);
+        impactOsc.start(now + 0.05);
+        impactOsc.stop(now + 0.2);
+      } catch (e) {
+        console.warn('Audio playback failed:', e);
+      }
+    }
+
+    // 魔法効果音（エネルギー系スキル）
+    function playMagicSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // キラキラ上昇音
+        const magic1 = audioContext.createOscillator();
+        const magic1Gain = audioContext.createGain();
+        magic1.type = 'sine';
+        magic1.frequency.setValueAtTime(523.25, now); // C5
+        magic1.frequency.linearRampToValueAtTime(783.99, now + 0.15); // G5
+        magic1Gain.gain.setValueAtTime(0.2, now);
+        magic1Gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        magic1.connect(magic1Gain);
+        magic1Gain.connect(audioContext.destination);
+        magic1.start(now);
+        magic1.stop(now + 0.15);
+        
+        const magic2 = audioContext.createOscillator();
+        const magic2Gain = audioContext.createGain();
+        magic2.type = 'sine';
+        magic2.frequency.setValueAtTime(659.25, now + 0.05); // E5
+        magic2.frequency.linearRampToValueAtTime(1046.50, now + 0.2); // C6
+        magic2Gain.gain.setValueAtTime(0.2, now + 0.05);
+        magic2Gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        magic2.connect(magic2Gain);
+        magic2Gain.connect(audioContext.destination);
+        magic2.start(now + 0.05);
+        magic2.stop(now + 0.2);
+        
+        // エネルギー持続音
+        const energyOsc = audioContext.createOscillator();
+        const energyGain = audioContext.createGain();
+        energyOsc.type = 'triangle';
+        energyOsc.frequency.setValueAtTime(880, now);
+        energyOsc.frequency.linearRampToValueAtTime(1320, now + 0.3);
+        energyGain.gain.setValueAtTime(0.15, now);
+        energyGain.gain.linearRampToValueAtTime(0, now + 0.3);
+        energyOsc.connect(energyGain);
+        energyGain.connect(audioContext.destination);
+        energyOsc.start(now);
+        energyOsc.stop(now + 0.3);
+      } catch (e) {
+        console.warn('Audio playback failed:', e);
+      }
+    }
+
+    // 防御・回復効果音（シールド系スキル）
+    function playDefenseSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // シールド展開音：低音から高音へ
+        const shield1 = audioContext.createOscillator();
+        const shield1Gain = audioContext.createGain();
+        shield1.type = 'sine';
+        shield1.frequency.setValueAtTime(200, now);
+        shield1.frequency.linearRampToValueAtTime(600, now + 0.2);
+        shield1Gain.gain.setValueAtTime(0.3, now);
+        shield1Gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        shield1.connect(shield1Gain);
+        shield1Gain.connect(audioContext.destination);
+        shield1.start(now);
+        shield1.stop(now + 0.2);
+        
+        // キーン音：高音持続
+        const shield2 = audioContext.createOscillator();
+        const shield2Gain = audioContext.createGain();
+        shield2.type = 'sine';
+        shield2.frequency.setValueAtTime(1200, now + 0.15);
+        shield2Gain.gain.setValueAtTime(0.2, now + 0.15);
+        shield2Gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        shield2.connect(shield2Gain);
+        shield2Gain.connect(audioContext.destination);
+        shield2.start(now + 0.15);
+        shield2.stop(now + 0.5);
+        
+        // バリア共鳴音
+        const resonance = audioContext.createOscillator();
+        const resonanceGain = audioContext.createGain();
+        resonance.type = 'triangle';
+        resonance.frequency.setValueAtTime(800, now + 0.1);
+        resonanceGain.gain.setValueAtTime(0.15, now + 0.1);
+        resonanceGain.gain.linearRampToValueAtTime(0, now + 0.4);
+        resonance.connect(resonanceGain);
+        resonanceGain.connect(audioContext.destination);
+        resonance.start(now + 0.1);
+        resonance.stop(now + 0.4);
+      } catch (e) {
+        console.warn('Audio playback failed:', e);
+      }
+    }
+
+    // 撃破効果音（ボス撃破時の重厚なサウンド）
+    function playDefeatSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // 重低音
+        const bassOsc = audioContext.createOscillator();
+        const bassGain = audioContext.createGain();
+        bassOsc.type = 'sine';
+        bassOsc.frequency.setValueAtTime(65.41, now);
+        bassGain.gain.setValueAtTime(0, now);
+        bassGain.gain.linearRampToValueAtTime(0.3, now + 0.2);
+        bassGain.gain.linearRampToValueAtTime(0.21, now + 1.7);
+        bassGain.gain.linearRampToValueAtTime(0, now + 3.2);
+        bassOsc.connect(bassGain);
+        bassGain.connect(audioContext.destination);
+        bassOsc.start(now);
+        bassOsc.stop(now + 3.2);
+        
+        // 崩壊ノイズ
+        const bufferSize = audioContext.sampleRate * 2.5;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let lastOut = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          output[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = output[i];
+          output[i] *= 3.5;
+        }
+        
+        const noiseSource = audioContext.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 500;
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0, now);
+        noiseGain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+        noiseGain.gain.linearRampToValueAtTime(0.05, now + 1.3);
+        noiseGain.gain.linearRampToValueAtTime(0, now + 2.3);
+        noiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(audioContext.destination);
+        noiseSource.start(now);
+        
+        // 下降音
+        const fallOsc = audioContext.createOscillator();
+        const fallGain = audioContext.createGain();
+        fallOsc.type = 'sawtooth';
+        fallOsc.frequency.setValueAtTime(146.83, now);
+        fallOsc.frequency.exponentialRampToValueAtTime(55, now + 2.5);
+        fallGain.gain.setValueAtTime(0, now);
+        fallGain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+        fallGain.gain.linearRampToValueAtTime(0, now + 2.5);
+        fallOsc.connect(fallGain);
+        fallGain.connect(audioContext.destination);
+        fallOsc.start(now);
+        fallOsc.stop(now + 2.5);
+      } catch (e) {
+        console.warn('Audio playback failed:', e);
+      }
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        if (data.length > 0) {
+          playerData = data[0];
+        }
+      }
+    };
+
+    async function initializeSDKs() {
+      const dataResult = await window.dataSdk.init(dataHandler);
+      if (!dataResult.isOk) {
+        console.error("Data SDK initialization failed");
+      }
+
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            renderCurrentScene();
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.background_color || defaultConfig.background_color,
+                set: (value) => {
+                  config.background_color = value;
+                  window.elementSdk.setConfig({ background_color: value });
+                }
+              },
+              {
+                get: () => config.surface_color || defaultConfig.surface_color,
+                set: (value) => {
+                  config.surface_color = value;
+                  window.elementSdk.setConfig({ surface_color: value });
+                }
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (value) => {
+                  config.text_color = value;
+                  window.elementSdk.setConfig({ text_color: value });
+                }
+              },
+              {
+                get: () => config.primary_action_color || defaultConfig.primary_action_color,
+                set: (value) => {
+                  config.primary_action_color = value;
+                  window.elementSdk.setConfig({ primary_action_color: value });
+                }
+              },
+              {
+                get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+                set: (value) => {
+                  config.secondary_action_color = value;
+                  window.elementSdk.setConfig({ secondary_action_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: {
+              get: () => config.font_family || defaultConfig.font_family,
+              set: (value) => {
+                config.font_family = value;
+                window.elementSdk.setConfig({ font_family: value });
+              }
+            },
+            fontSizeable: {
+              get: () => config.font_size || defaultConfig.font_size,
+              set: (value) => {
+                config.font_size = value;
+                window.elementSdk.setConfig({ font_size: value });
+              }
+            }
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["main_title", config.main_title || defaultConfig.main_title],
+            ["subtitle", config.subtitle || defaultConfig.subtitle],
+            ["tagline", config.tagline || defaultConfig.tagline],
+            ["start_button", config.start_button || defaultConfig.start_button],
+            ["choice_empathy", config.choice_empathy || defaultConfig.choice_empathy],
+            ["choice_insight", config.choice_insight || defaultConfig.choice_insight],
+            ["choice_reframe", config.choice_reframe || defaultConfig.choice_reframe]
+          ])
+        });
+      }
+    }
+
+    function getConfig() {
+      return window.elementSdk?.config || defaultConfig;
+    }
+
+    function getUnlockedSkills() {
+      if (!playerData) return [];
+      const unlockedIds = (playerData.unlocked_skills || '').split(',').filter(s => s);
+      return Object.values(skillDatabase)
+        .filter(skill => skill.level <= playerData.player_level)
+        .filter(skill => unlockedIds.includes(skill.type) || skill.level <= 10);
+    }
+
+    function getAvailableSkillsForBattle() {
+      const allSkills = getUnlockedSkills();
+      
+      // 全習得スキルから最大8個をランダムに選択
+      const shuffled = [...allSkills].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, Math.min(8, allSkills.length));
+    }
+
+    function renderCurrentScene() {
+      if (isRendering) return;
+      isRendering = true;
+      
+      const app = document.getElementById('app');
+      const config = getConfig();
+      
+      try {
+        switch(currentScene) {
+          case 'title':
+            renderTitleScreen(app, config);
+            break;
+          case 'character-creation':
+            renderCharacterCreation(app, config);
+            break;
+          case 'story-intro':
+            renderStoryIntro(app, config);
+            break;
+          case 'skill-tree':
+            renderSkillTree(app, config);
+            break;
+          case 'battle-intro':
+            renderBattleIntro(app, config);
+            break;
+          case 'battle':
+            renderBattleScreen(app, config);
+            break;
+          case 'result':
+            renderResultScreen(app, config);
+            break;
+          case 'emotion-log':
+            renderEmotionLog(app, config);
+            break;
+          case 'ending':
+            renderEnding(app, config);
+            break;
+          case 'save-load':
+            renderSaveLoad(app, config);
+            break;
+        }
+      } finally {
+        isRendering = false;
+      }
+    }
+
+    async function getAllSaveData() {
+      // Data SDKから全データを取得するため、onDataChangedで保持しているデータを使用
+      let allData = [];
+      
+      const tempHandler = {
+        onDataChanged(data) {
+          allData = data;
+        }
+      };
+      
+      // 既存のhandlerを一時的に使用
+      await window.dataSdk.init(tempHandler);
+      
+      return allData;
+    }
+
+    function renderSaveLoad(app, config) {
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      // 全セーブデータを取得（playerDataの他にも複数セーブがある可能性）
+      const initPromise = getAllSaveData();
+      
+      app.innerHTML = `
+        <div class="h-full w-full overflow-auto p-8 fade-in"
+             style="background: ${config.background_color || defaultConfig.background_color};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="max-w-md mx-auto space-y-6">
+            <div class="text-center mb-6">
+              <h2 class="mb-2" style="font-size: ${baseSize * 2}px; font-weight: bold;">
+                💾 セーブ・ロード管理
+              </h2>
+              <p style="font-size: ${baseSize}px; opacity: 0.8;">
+                セーブデータの管理
+              </p>
+            </div>
+            
+            <div id="save-slots" class="space-y-4">
+              <div class="text-center" style="font-size: ${baseSize}px;">
+                読み込み中...
+              </div>
+            </div>
+            
+            <button id="back-to-title-btn" 
+                    class="w-full py-4 px-8 rounded-2xl font-bold"
+                    style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                           color: ${config.text_color || defaultConfig.text_color};
+                           font-size: ${baseSize * 1.1}px;">
+              タイトルに戻る
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // セーブデータを読み込んで表示
+      initPromise.then(allSaves => {
+        const slotsContainer = document.getElementById('save-slots');
+        
+        if (allSaves.length === 0) {
+          slotsContainer.innerHTML = `
+            <div class="dialogue-box p-6 rounded-2xl text-center" 
+                 style="font-size: ${baseSize}px; opacity: 0.7;">
+              セーブデータがありません
+            </div>
+          `;
+        } else {
+          slotsContainer.innerHTML = allSaves.map((save, index) => {
+            const battleLog = JSON.parse(save.battle_log || '[]');
+            const isCurrentSave = playerData && save.__backendId === playerData.__backendId;
+            
+            return `
+              <div class="dialogue-box p-5 rounded-2xl slide-up ${isCurrentSave ? 'glow-effect' : ''}"
+                   style="animation-delay: ${index * 0.1}s; ${isCurrentSave ? 'border: 2px solid ' + (config.primary_action_color || defaultConfig.primary_action_color) : ''}">
+                <div class="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                      ${save.player_name}
+                    </h3>
+                    <p style="font-size: ${baseSize * 0.85}px; opacity: 0.7;">
+                      Lv.${save.player_level} | 戦闘回数: ${battleLog.length}
+                    </p>
+                  </div>
+                  ${isCurrentSave ? `<span style="font-size: ${baseSize}px;">✅</span>` : ''}
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 mb-3" style="font-size: ${baseSize * 0.8}px;">
+                  <div>共感: ${save.empathy}</div>
+                  <div>洞察: ${save.insight}</div>
+                  <div>回復: ${save.recovery}</div>
+                  <div>影響: ${save.influence}</div>
+                </div>
+                
+                <div class="flex space-x-2">
+                  ${!isCurrentSave ? `
+                    <button class="load-save-btn flex-1 py-2 px-4 rounded-xl font-bold"
+                            data-save-id="${save.__backendId}"
+                            style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                                   color: ${config.text_color || defaultConfig.text_color};
+                                   font-size: ${baseSize * 0.85}px;">
+                      ロード
+                    </button>
+                  ` : ''}
+                  <button class="delete-save-btn flex-1 py-2 px-4 rounded-xl font-bold"
+                          data-save-id="${save.__backendId}"
+                          data-save-name="${save.player_name}"
+                          style="background: #ef4444;
+                                 color: ${config.text_color || defaultConfig.text_color};
+                                 font-size: ${baseSize * 0.85}px;">
+                    削除
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          // ロードボタンのイベント
+          document.querySelectorAll('.load-save-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (isProcessing) return;
+              
+              isProcessing = true;
+              btn.disabled = true;
+              btn.textContent = 'ロード中...';
+              
+              const saveId = btn.dataset.saveId;
+              const targetSave = allSaves.find(s => s.__backendId === saveId);
+              
+              if (targetSave) {
+                // このセーブデータをplayerDataとして使用
+                playerData = targetSave;
+                
+                // 画面を更新
+                setTimeout(() => {
+                  isProcessing = false;
+                  currentScene = 'story-intro';
+                  renderCurrentScene();
+                }, 500);
+              } else {
+                isProcessing = false;
+                btn.disabled = false;
+                btn.textContent = 'ロード';
+              }
+            });
+          });
+          
+          // 削除ボタンのイベント
+          document.querySelectorAll('.delete-save-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (isProcessing) return;
+              
+              const saveName = btn.dataset.saveName;
+              const saveId = btn.dataset.saveId;
+              
+              // インライン確認UI
+              const parentDiv = btn.closest('.dialogue-box');
+              const originalContent = parentDiv.innerHTML;
+              
+              parentDiv.innerHTML = `
+                <div class="text-center space-y-4">
+                  <p style="font-size: ${baseSize}px; font-weight: bold;">
+                    「${saveName}」を削除しますか？
+                  </p>
+                  <p style="font-size: ${baseSize * 0.85}px; opacity: 0.8;">
+                    この操作は取り消せません
+                  </p>
+                  <div class="flex space-x-3">
+                    <button class="confirm-delete flex-1 py-3 px-4 rounded-xl font-bold"
+                            style="background: #ef4444;
+                                   color: ${config.text_color || defaultConfig.text_color};
+                                   font-size: ${baseSize * 0.9}px;">
+                      削除する
+                    </button>
+                    <button class="cancel-delete flex-1 py-3 px-4 rounded-xl font-bold"
+                            style="background: ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                                   color: ${config.text_color || defaultConfig.text_color};
+                                   font-size: ${baseSize * 0.9}px;">
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              `;
+              
+              parentDiv.querySelector('.cancel-delete').addEventListener('click', () => {
+                parentDiv.innerHTML = originalContent;
+                renderSaveLoad(app, config);
+              });
+              
+              parentDiv.querySelector('.confirm-delete').addEventListener('click', async () => {
+                if (isProcessing) return;
+                
+                isProcessing = true;
+                parentDiv.querySelector('.confirm-delete').textContent = '削除中...';
+                
+                const targetSave = allSaves.find(s => s.__backendId === saveId);
+                
+                if (targetSave) {
+                  const result = await window.dataSdk.delete(targetSave);
+                  
+                  if (result.isOk) {
+                    // 削除したのが現在のセーブなら、playerDataをnullに
+                    if (playerData && playerData.__backendId === saveId) {
+                      playerData = null;
+                    }
+                    
+                    // 画面を再読み込み
+                    setTimeout(() => {
+                      isProcessing = false;
+                      renderCurrentScene();
+                    }, 500);
+                  } else {
+                    parentDiv.innerHTML = `
+                      <div class="text-center" style="color: #ef4444; font-size: ${baseSize}px;">
+                        削除に失敗しました
+                      </div>
+                    `;
+                    setTimeout(() => {
+                      isProcessing = false;
+                      renderCurrentScene();
+                    }, 2000);
+                  }
+                } else {
+                  isProcessing = false;
+                }
+              });
+            });
+          });
+        }
+      });
+      
+      document.getElementById('back-to-title-btn').addEventListener('click', () => {
+        currentScene = 'title';
+        renderCurrentScene();
+      });
+    }
+
+    function renderTitleScreen(app, config) {
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      // タイトルBGM開始
+      playTitleBgm();
+      
+      app.innerHTML = `
+        <div class="h-full w-full relative flex flex-col items-center justify-center fade-in" 
+             style="background: linear-gradient(180deg, ${config.background_color || defaultConfig.background_color} 0%, #1a1a3e 100%);
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="absolute inset-0 opacity-20">
+            <div class="absolute top-20 left-10 w-32 h-32 rounded-full pulse-effect" 
+                 style="background: ${config.primary_action_color || defaultConfig.primary_action_color};"></div>
+            <div class="absolute bottom-40 right-10 w-40 h-40 rounded-full pulse-effect" 
+                 style="background: ${config.secondary_action_color || defaultConfig.secondary_action_color}; animation-delay: 1s;"></div>
+          </div>
+          
+          <!-- 音量コントロール -->
+          <button id="bgm-toggle" 
+                  class="absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center z-20"
+                  style="background: ${config.surface_color || defaultConfig.surface_color}; 
+                         font-size: ${baseSize * 1.5}px;
+                         box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            ${bgmEnabled ? '🔊' : '🔇'}
+          </button>
+          
+          <div class="relative z-10 text-center px-8 w-full">
+            <h1 class="mb-2 slide-up gradient-text" 
+                style="font-size: ${baseSize * 2.5}px; font-weight: bold; letter-spacing: 2px;">
+              ${config.main_title || defaultConfig.main_title}
+            </h1>
+            
+            <p class="mb-6 slide-up" 
+               style="font-size: ${baseSize * 1.2}px; opacity: 0.9; animation-delay: 0.2s;">
+              ${config.subtitle || defaultConfig.subtitle}
+            </p>
+            
+            <div class="my-10 slide-up" style="animation-delay: 0.4s;">
+              <div class="text-7xl mb-4">🎓</div>
+              <p style="font-size: ${baseSize}px; opacity: 0.8; line-height: 1.6;">
+                ${config.tagline || defaultConfig.tagline}
+              </p>
+            </div>
+            
+            <button id="start-btn" 
+                    class="w-full max-w-md py-4 px-8 rounded-2xl font-bold glow-effect slide-up"
+                    style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                           color: ${config.text_color || defaultConfig.text_color};
+                           font-size: ${baseSize * 1.3}px;
+                           animation-delay: 0.6s;">
+              ${config.start_button || defaultConfig.start_button}
+            </button>
+            
+            ${playerData ? `
+              <div class="w-full max-w-md mt-4 space-y-3">
+                <button id="continue-btn" 
+                        class="w-full py-3 px-8 rounded-2xl font-bold slide-up"
+                        style="background: ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                               color: ${config.text_color || defaultConfig.text_color};
+                               font-size: ${baseSize}px;
+                               opacity: 0.9;
+                               animation-delay: 0.8s;">
+                  続きから (Lv.${playerData.player_level})
+                </button>
+                
+                <button id="save-load-btn" 
+                        class="w-full py-3 px-8 rounded-2xl font-bold slide-up"
+                        style="background: transparent;
+                               border: 2px solid ${config.primary_action_color || defaultConfig.primary_action_color};
+                               color: ${config.text_color || defaultConfig.text_color};
+                               font-size: ${baseSize * 0.9}px;
+                               opacity: 0.9;
+                               animation-delay: 1s;">
+                  💾 セーブ・ロード管理
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('bgm-toggle').addEventListener('click', () => {
+        bgmEnabled = !bgmEnabled;
+        if (!bgmEnabled) {
+          stopBgm();
+        } else {
+          playTitleBgm();
+        }
+        renderCurrentScene();
+      });
+
+      document.getElementById('start-btn').addEventListener('click', () => {
+        currentScene = 'character-creation';
+        renderCurrentScene();
+      });
+
+      if (playerData) {
+        document.getElementById('continue-btn').addEventListener('click', () => {
+          currentScene = 'story-intro';
+          renderCurrentScene();
+        });
+        
+        document.getElementById('save-load-btn')?.addEventListener('click', () => {
+          currentScene = 'save-load';
+          renderCurrentScene();
+        });
+      }
+    }
+
+    function renderCharacterCreation(app, config) {
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      app.innerHTML = `
+        <div class="h-full w-full flex flex-col items-center justify-center p-8 fade-in"
+             style="background: ${config.background_color || defaultConfig.background_color};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="w-full max-w-md dialogue-box p-8 rounded-3xl slide-up">
+            <h2 class="mb-6 text-center" 
+                style="font-size: ${baseSize * 2}px; font-weight: bold;">
+              あなたは誰ですか？
+            </h2>
+            
+            <form id="character-form" class="space-y-6">
+              <div>
+                <label for="player-name" class="block mb-3" 
+                       style="font-size: ${baseSize * 1.1}px;">
+                  名前
+                </label>
+                <input type="text" id="player-name" required
+                       class="w-full p-4 rounded-xl border-2 text-center" 
+                       style="background: ${config.surface_color || defaultConfig.surface_color}; 
+                              border-color: ${config.primary_action_color || defaultConfig.primary_action_color};
+                              color: ${config.text_color || defaultConfig.text_color};
+                              font-size: ${baseSize * 1.2}px;"
+                       placeholder="あなたの名前">
+              </div>
+              
+              <div class="p-6 rounded-xl text-center" 
+                   style="background: ${config.surface_color || defaultConfig.surface_color}; 
+                          font-size: ${baseSize * 0.95}px;
+                          line-height: 1.8;">
+                <p class="mb-4" style="font-weight: bold; font-size: ${baseSize * 1.1}px;">初期ステータス</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>共感: 10</div>
+                  <div>洞察: 10</div>
+                  <div>回復: 10</div>
+                  <div>影響: 10</div>
+                </div>
+              </div>
+              
+              <button type="submit" id="create-btn" 
+                      class="w-full py-4 px-8 rounded-2xl font-bold glow-effect" 
+                      style="background: ${config.primary_action_color || defaultConfig.primary_action_color}; 
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 1.3}px;">
+                旅を始める
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('character-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const btn = document.getElementById('create-btn');
+        if (isProcessing) return;
+        
+        isProcessing = true;
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.textContent = '作成中...';
+        
+        const name = document.getElementById('player-name').value;
+        
+        const result = await window.dataSdk.create({
+          player_level: 1,
+          player_name: name,
+          empathy: 10,
+          insight: 10,
+          recovery: 10,
+          influence: 10,
+          anxiety_level: 50,
+          hope_level: 50,
+          confidence_level: 50,
+          unlocked_skills: 'empathy,insight,reframe',
+          completed_battles: '',
+          battle_log: JSON.stringify([]),
+          created_at: new Date().toISOString()
+        });
+        
+        if (result.isOk) {
+          setTimeout(() => {
+            currentScene = 'story-intro';
+            renderCurrentScene();
+          }, 500);
+        } else {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.textContent = '旅を始める';
+          
+          const errorMsg = document.createElement('p');
+          errorMsg.textContent = 'キャラクター作成に失敗しました';
+          errorMsg.style.color = '#ef4444';
+          errorMsg.style.marginTop = '1rem';
+          errorMsg.style.textAlign = 'center';
+          document.getElementById('character-form').appendChild(errorMsg);
+        }
+        
+        isProcessing = false;
+      });
+    }
+
+    function renderStoryIntro(app, config) {
+      if (!playerData) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const battleLog = JSON.parse(playerData.battle_log || '[]');
+      const victoryCount = battleLog.length;
+      
+      app.innerHTML = `
+        <div id="story-intro-screen" class="h-full w-full flex flex-col items-center justify-center p-8 fade-in cursor-pointer"
+             style="background: linear-gradient(180deg, ${config.background_color || defaultConfig.background_color} 0%, #1a1a3e 100%);
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="w-full max-w-md text-center space-y-6 slide-up pointer-events-none">
+            <div>
+              <h2 class="mb-3" style="font-size: ${baseSize * 2}px; font-weight: bold;">
+                第${victoryCount + 1}章
+              </h2>
+              <p style="font-size: ${baseSize * 1.2}px; opacity: 0.9;">
+                Lv.${playerData.player_level} ${playerData.player_name}
+              </p>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl space-y-4" 
+                 style="font-size: ${baseSize * 0.95}px; line-height: 1.8;">
+              <p>あなたは今、人生の岐路に立っている。</p>
+              <p>目の前には、様々な選択肢が広がっている。</p>
+              <p>しかし、心の中には「敵」が潜んでいる。</p>
+              <p class="text-center pt-3" style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                不安、疑念、そして過去の傷...
+              </p>
+              <p>これらと向き合い、理解し、乗り越えることで、</p>
+              <p>あなたは本当の答えを見つけるだろう。</p>
+            </div>
+            
+            <div class="space-y-4">
+              <button id="auto-save-btn" 
+                      class="w-full py-4 px-8 rounded-2xl font-bold glow-effect pointer-events-auto"
+                      style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 1.3}px;">
+                💾 自動でセーブ
+              </button>
+              
+              <button id="skill-tree-btn" 
+                      class="w-full py-3 px-6 rounded-xl pointer-events-auto"
+                      style="background: transparent;
+                             border: 2px solid ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 0.9}px;">
+                🌳 スキルツリーを見る
+              </button>
+              
+              <button id="view-log-btn" 
+                      class="w-full py-3 px-6 rounded-xl pointer-events-auto"
+                      style="background: transparent;
+                             border: 2px solid ${config.primary_action_color || defaultConfig.primary_action_color};
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 0.9}px;">
+                📖 成長ログを見る
+              </button>
+              
+              ${victoryCount >= 7 ? `
+                <button id="ending-btn" 
+                        class="w-full py-4 px-8 rounded-2xl font-bold pointer-events-auto"
+                        style="background: ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                               color: ${config.text_color || defaultConfig.text_color};
+                               font-size: ${baseSize * 1.1}px;">
+                  物語を終える
+                </button>
+              ` : ''}
+            </div>
+            
+            <div class="pt-4" style="opacity: 0.7;">
+              <p style="font-size: ${baseSize * 0.9}px;">
+                👆 タップして次の試練へ
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const setupRandomBattle = () => {
+        const enemyIds = Object.keys(enemies);
+        const randomEnemyId = enemyIds[Math.floor(Math.random() * enemyIds.length)];
+        
+        currentEnemy = { ...enemies[randomEnemyId] };
+        battleState = {
+          enemyHp: currentEnemy.maxHp,
+          enemyMaxHp: currentEnemy.maxHp,
+          anxiety: playerData.anxiety_level || 50,
+          hope: playerData.hope_level || 50,
+          turn: 0,
+          messages: [],
+          shield: 0,
+          counter: false
+        };
+        currentScene = 'battle-intro';
+        renderCurrentScene();
+      };
+
+      // 画面全体クリックで次の試練へ
+      document.getElementById('story-intro-screen')?.addEventListener('click', (e) => {
+        // ボタンのクリックは除外（ボタンは個別にイベントを持つため）
+        if (!e.target.closest('button')) {
+          setupRandomBattle();
+        }
+      });
+
+      // 自動セーブボタン
+      document.getElementById('auto-save-btn')?.addEventListener('click', async (e) => {
+        e.stopPropagation(); // 親要素へのイベント伝播を止める
+        
+        if (isProcessing) return;
+        
+        const btn = document.getElementById('auto-save-btn');
+        isProcessing = true;
+        btn.disabled = true;
+        btn.textContent = '💾 セーブ中...';
+        
+        // 現在のデータを保存（更新）
+        const result = await window.dataSdk.update({
+          ...playerData
+        });
+        
+        if (result.isOk) {
+          btn.textContent = '✅ セーブ完了！';
+          setTimeout(() => {
+            btn.textContent = '💾 自動でセーブ';
+            btn.disabled = false;
+            isProcessing = false;
+          }, 1500);
+        } else {
+          btn.textContent = '❌ セーブ失敗';
+          setTimeout(() => {
+            btn.textContent = '💾 自動でセーブ';
+            btn.disabled = false;
+            isProcessing = false;
+          }, 1500);
+        }
+      });
+
+      document.getElementById('skill-tree-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentScene = 'skill-tree';
+        renderCurrentScene();
+      });
+      document.getElementById('view-log-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentScene = 'emotion-log';
+        renderCurrentScene();
+      });
+      document.getElementById('ending-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentScene = 'ending';
+        renderCurrentScene();
+      });
+    }
+
+    function renderSkillTree(app, config) {
+      if (!playerData) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const allSkills = Object.values(skillDatabase).sort((a, b) => a.level - b.level);
+      const unlockedSkillIds = getUnlockedSkills().map(s => s.id);
+      
+      const tierColors = {
+        1: '#10b981'
+      };
+      
+      app.innerHTML = `
+        <div class="h-full w-full overflow-auto p-6 fade-in"
+             style="background: ${config.background_color || defaultConfig.background_color};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="max-w-md mx-auto space-y-6">
+            <div class="text-center mb-6">
+              <h2 class="mb-2" style="font-size: ${baseSize * 2}px; font-weight: bold;">
+                🌳 スキルツリー
+              </h2>
+              <p style="font-size: ${baseSize}px; opacity: 0.8;">
+                Lv.${playerData.player_level} - ${unlockedSkillIds.length}個習得
+              </p>
+            </div>
+            
+            <div class="dialogue-box p-5 rounded-3xl slide-up">
+              <div class="flex items-center justify-between mb-4">
+                <h3 style="font-size: ${baseSize * 1.2}px; font-weight: bold; color: ${tierColors[1]};">
+                  Tier 1
+                </h3>
+                <span style="font-size: ${baseSize * 0.85}px; opacity: 0.7;">
+                  初級・分析攻撃期
+                </span>
+              </div>
+              
+              <div class="space-y-3">
+                ${allSkills.map(skill => {
+                  const isUnlocked = unlockedSkillIds.includes(skill.id);
+                  const isAvailable = skill.level <= playerData.player_level;
+                  
+                  return `
+                    <div class="skill-card ${!isUnlocked ? 'locked' : ''} skill-tier-${skill.tier} p-4 rounded-xl"
+                         style="background: ${config.surface_color || defaultConfig.surface_color};">
+                      <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                          <span style="font-size: ${baseSize * 1.5}px;">${skill.icon}</span>
+                          <div>
+                            <h4 style="font-size: ${baseSize}px; font-weight: bold;">
+                              ${skill.name}
+                            </h4>
+                            <p style="font-size: ${baseSize * 0.75}px; opacity: 0.6;">
+                              Lv.${skill.level} | ${skill.type === 'empathy' ? '共感' : skill.type === 'insight' ? '洞察' : 'リフレーム'}
+                            </p>
+                          </div>
+                        </div>
+                        ${isUnlocked ? `<span class="sparkle-effect" style="font-size: ${baseSize * 1.2}px;">✨</span>` : 
+                          !isAvailable ? `<span style="font-size: ${baseSize}px; opacity: 0.5;">🔒</span>` : ''}
+                      </div>
+                      
+                      <p style="font-size: ${baseSize * 0.85}px; opacity: 0.8; line-height: 1.5; margin-bottom: 0.5rem;">
+                        ${skill.description}
+                      </p>
+                      
+                      <div class="flex items-center justify-between" style="font-size: ${baseSize * 0.8}px;">
+                        <span style="color: ${tierColors[skill.tier]};">⚔️ ${skill.damage}ダメージ</span>
+                        <span style="opacity: 0.7;">${skill.effect}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            
+            <button id="back-btn" 
+                    class="w-full py-4 px-8 rounded-2xl font-bold"
+                    style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                           color: ${config.text_color || defaultConfig.text_color};
+                           font-size: ${baseSize * 1.1}px;">
+              戻る
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('back-btn').addEventListener('click', () => {
+        currentScene = 'story-intro';
+        renderCurrentScene();
+      });
+    }
+
+    function renderBattleIntro(app, config) {
+      if (!currentEnemy) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      // バトルBGM開始
+      playBattleBgm();
+      
+      // 敵のSVGを生成（簡易版：絵文字で代用）
+      const enemyVisual = currentEnemy.id;
+      
+      app.innerHTML = `
+        <div class="h-full w-full flex flex-col items-center justify-center fade-in"
+             style="background: ${currentEnemy.background};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="w-full text-center space-y-10 px-8">
+            <div class="pulse-effect" style="font-size: 140px;">
+              ${enemyVisual === 'anxiety' ? '🌑' : 
+                enemyVisual === 'overwork' ? '⚙️' : 
+                enemyVisual === 'selfDoubt' ? '⛓️' : 
+                enemyVisual === 'burnout' ? '🔥' : 
+                enemyVisual === 'conformity' ? '👥' : 
+                enemyVisual === 'judgment' ? '⚖️' : 
+                enemyVisual === 'maze' ? '🌀' : 
+                enemyVisual === 'ideal' ? '💫' : 
+                enemyVisual === 'role' ? '🎭' : '🕳️'}
+            </div>
+            
+            <h2 class="slide-up" 
+                style="font-size: ${baseSize * 2.2}px; font-weight: bold; letter-spacing: 2px;">
+              ${currentEnemy.name}
+            </h2>
+            
+            <p class="slide-up dialogue-box p-6 rounded-2xl mx-auto max-w-md" 
+               style="font-size: ${baseSize * 1.1}px; animation-delay: 0.3s;">
+              ${currentEnemy.catchphrase}
+            </p>
+            
+            <div class="slide-up" style="animation-delay: 0.6s;">
+              <div class="text-5xl space-x-6">
+                <span style="animation: pulse 1s infinite;">⚡</span>
+                <span style="animation: pulse 1s infinite; animation-delay: 0.3s;">⚡</span>
+                <span style="animation: pulse 1s infinite; animation-delay: 0.6s;">⚡</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        currentScene = 'battle';
+        renderCurrentScene();
+      }, 3000);
+    }
+
+    function renderBattleScreen(app, config) {
+      if (!currentEnemy || !playerData) {
+        console.error('Battle screen render failed: missing data');
+        return;
+      }
+      
+      console.log('Rendering battle screen, isProcessing:', isProcessing);
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const hpPercent = (battleState.enemyHp / battleState.enemyMaxHp) * 100;
+      
+      const currentDialogue = battleState.enemyHp < battleState.enemyMaxHp * 0.3 
+        ? currentEnemy.dialogue.weak 
+        : battleState.turn === 0 
+          ? currentEnemy.dialogue.intro 
+          : currentEnemy.dialogue.attack;
+      
+      const availableSkills = getAvailableSkillsForBattle();
+      
+      const tierColors = {
+        1: '#10b981'
+      };
+      
+      // 敵のビジュアル
+      const enemyVisual = currentEnemy.id === 'anxiety' ? '🌑' : 
+                         currentEnemy.id === 'overwork' ? '⚙️' : 
+                         currentEnemy.id === 'selfDoubt' ? '⛓️' : 
+                         currentEnemy.id === 'burnout' ? '🔥' : 
+                         currentEnemy.id === 'conformity' ? '👥' : 
+                         currentEnemy.id === 'judgment' ? '⚖️' : 
+                         currentEnemy.id === 'maze' ? '🌀' : 
+                         currentEnemy.id === 'ideal' ? '💫' : 
+                         currentEnemy.id === 'role' ? '🎭' : '🕳️';
+      
+      app.innerHTML = `
+        <div class="h-full w-full flex flex-col fade-in"
+             style="background: ${currentEnemy.background};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <!-- 上部エリア: 敵情報（20%） -->
+          <div class="px-4 pt-4 pb-2" style="height: 20%;">
+            <div class="dialogue-box p-4 rounded-2xl h-full flex flex-col justify-center">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div id="enemy-sprite" class="transition-all duration-300" style="font-size: 50px;">
+                    ${enemyVisual}
+                  </div>
+                  <div>
+                    <h3 style="font-size: ${baseSize}px; font-weight: bold; margin-bottom: 0.25rem;">
+                      ${currentEnemy.name}
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                      <span style="font-size: ${baseSize * 0.7}px; opacity: 0.7;">HP</span>
+                      <div class="flex-1" style="width: 120px;">
+                        <div class="h-1.5 rounded-full overflow-hidden" 
+                             style="background: rgba(255, 255, 255, 0.2);">
+                          <div id="hp-bar" class="h-full transition-all duration-500" 
+                               style="width: ${hpPercent}%; background: linear-gradient(90deg, #ef4444, #f59e0b);"></div>
+                        </div>
+                      </div>
+                      <span style="font-size: ${baseSize * 0.7}px; opacity: 0.8;">${battleState.enemyHp}</span>
+                    </div>
+                  </div>
+                </div>
+                ${battleState.shield > 0 ? `<div style="font-size: ${baseSize * 1.5}px;">🛡️</div>` : ''}
+              </div>
+            </div>
+          </div>
+          
+          <!-- 中央エリア: セリフ＋主人公（35%） -->
+          <div class="px-4 py-2 flex-1" style="height: 35%;">
+            <div class="h-full flex flex-col justify-between space-y-2">
+              <!-- セリフ -->
+              <div id="dialogue-window" class="dialogue-box p-4 rounded-2xl flex items-center justify-center">
+                <p style="font-size: ${baseSize * 0.85}px; line-height: 1.5; font-style: italic; text-align: center;">
+                  ${currentDialogue}
+                </p>
+              </div>
+              
+              <!-- 主人公 -->
+              <div class="dialogue-box p-3 rounded-2xl">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <div id="player-sprite" class="transition-all duration-300">
+                      <svg width="60" height="60" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated;">
+                        <rect x="18" y="8" width="12" height="10" fill="#ffdbac"/>
+                        <rect x="17" y="6" width="14" height="3" fill="#8b5a3c"/>
+                        <rect x="16" y="7" width="2" height="5" fill="#8b5a3c"/>
+                        <rect x="30" y="7" width="2" height="5" fill="#8b5a3c"/>
+                        <rect x="18" y="6" width="12" height="2" fill="#6b4423"/>
+                        <rect x="20" y="12" width="2" height="2" fill="#2d2d2d"/>
+                        <rect x="26" y="12" width="2" height="2" fill="#2d2d2d"/>
+                        <rect x="20" y="13" width="1" height="1" fill="#ffffff"/>
+                        <rect x="26" y="13" width="1" height="1" fill="#ffffff"/>
+                        <rect x="20" y="11" width="2" height="1" fill="#6b4423"/>
+                        <rect x="26" y="11" width="2" height="1" fill="#6b4423"/>
+                        <rect x="22" y="15" width="4" height="1" fill="#2d2d2d"/>
+                        <rect x="21" y="16" width="1" height="1" fill="#2d2d2d"/>
+                        <rect x="26" y="16" width="1" height="1" fill="#2d2d2d"/>
+                        <rect x="21" y="18" width="6" height="2" fill="#ffdbac"/>
+                        <rect x="15" y="20" width="18" height="14" fill="#1a2332"/>
+                        <rect x="21" y="20" width="6" height="12" fill="#ffffff"/>
+                        <rect x="23" y="20" width="2" height="8" fill="#2d5a8f"/>
+                        <rect x="22" y="28" width="1" height="1" fill="#2d5a8f"/>
+                        <rect x="25" y="28" width="1" height="1" fill="#2d5a8f"/>
+                        <rect x="20" y="20" width="1" height="3" fill="#1a2332"/>
+                        <rect x="27" y="20" width="1" height="3" fill="#1a2332"/>
+                        <rect x="19" y="21" width="1" height="2" fill="#1a2332"/>
+                        <rect x="28" y="21" width="1" height="2" fill="#1a2332"/>
+                        <rect x="12" y="22" width="3" height="2" fill="#ffdbac"/>
+                        <rect x="10" y="24" width="4" height="8" fill="#1a2332"/>
+                        <rect x="33" y="22" width="3" height="2" fill="#ffdbac"/>
+                        <rect x="34" y="24" width="4" height="8" fill="#1a2332"/>
+                        <rect x="36" y="28" width="6" height="8" fill="#5c4033"/>
+                        <rect x="37" y="29" width="4" height="6" fill="#6b4423"/>
+                        <rect x="39" y="26" width="1" height="2" fill="#3d2817"/>
+                        <rect x="39" y="31" width="1" height="1" fill="#ffd700"/>
+                        <rect x="23" y="28" width="1" height="1" fill="#cccccc"/>
+                        <rect x="24" y="28" width="1" height="1" fill="#cccccc"/>
+                        <rect x="23" y="31" width="1" height="1" fill="#cccccc"/>
+                        <rect x="24" y="31" width="1" height="1" fill="#cccccc"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style="font-size: ${baseSize * 0.8}px; font-weight: bold; margin-bottom: 0.25rem;">
+                        ${playerData.player_name}
+                      </div>
+                      <div class="flex items-center space-x-2" style="font-size: ${baseSize * 0.65}px;">
+                        <span>😰${battleState.anxiety}%</span>
+                        <span>✨${battleState.hope}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button id="auto-attack-btn" 
+                          class="px-4 py-2 rounded-full font-bold"
+                          style="background: ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                                 color: ${config.text_color || defaultConfig.text_color};
+                                 font-size: ${baseSize * 0.75}px;">
+                    ⚡自動
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 下部エリア: スキルバー（45%） -->
+          <div class="px-4 pb-4" style="height: 45%;">
+            <div class="h-full flex flex-col">
+              <div class="mb-2 px-2">
+                <p style="font-size: ${baseSize * 0.75}px; opacity: 0.7; text-align: center;">
+                  スキルをタップして発動 👆
+                </p>
+              </div>
+              
+              <div id="skill-scroll-container" class="flex-1 overflow-x-auto overflow-y-hidden">
+                <div class="flex space-x-3 h-full px-2" style="min-width: min-content;">
+                  ${availableSkills.map((skill, index) => {
+                    const tierColor = tierColors[skill.tier] || config.primary_action_color;
+                    return `
+                      <button class="skill-card-btn dialogue-box flex-shrink-0 p-4 rounded-2xl transition-all duration-200"
+                              data-skill-index="${index}"
+                              style="width: 160px; 
+                                     border-left: 4px solid ${tierColor};
+                                     background: ${config.surface_color || defaultConfig.surface_color};">
+                        <div class="h-full flex flex-col justify-between">
+                          <div class="text-center mb-2">
+                            <div style="font-size: ${baseSize * 2.5}px; margin-bottom: 0.5rem;">
+                              ${skill.icon}
+                            </div>
+                            <h4 style="font-size: ${baseSize * 0.85}px; font-weight: bold; margin-bottom: 0.25rem; color: ${tierColor};">
+                              ${skill.name}
+                            </h4>
+                            <p style="font-size: ${baseSize * 0.65}px; opacity: 0.7; line-height: 1.3;">
+                              ${skill.description}
+                            </p>
+                          </div>
+                          <div class="text-center space-y-1">
+                            <div style="font-size: ${baseSize * 0.9}px; font-weight: bold; color: ${tierColor};">
+                              ⚔️ ${skill.damage}
+                            </div>
+                            <div style="font-size: ${baseSize * 0.6}px; opacity: 0.6;">
+                              ${skill.effect}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // スキルカードのクリックイベント
+      availableSkills.forEach((skill, index) => {
+        const btn = document.querySelector(`[data-skill-index="${index}"]`);
+        if (btn && !btn.dataset.listenerAttached) {
+          btn.dataset.listenerAttached = 'true';
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Skill button clicked:', skill.name);
+            await executeSkill(skill);
+          });
+        }
+      });
+
+      // 自動攻撃ボタン
+      const autoBtn = document.getElementById('auto-attack-btn');
+      if (autoBtn && !autoBtn.dataset.listenerAttached) {
+        autoBtn.dataset.listenerAttached = 'true';
+        autoBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('Auto attack button clicked');
+          
+          if (availableSkills.length > 0) {
+            const randomSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
+            await executeSkill(randomSkill);
+          }
+        });
+      }
+    }
+
+    async function saveBattleResultAndShowResult() {
+      console.log('Saving battle result...');
+      
+      try {
+        playDefeatSound();
+      } catch (e) {
+        console.warn('Failed to play defeat sound:', e);
+      }
+      
+      const newLevel = Math.min(100, playerData.player_level + 1);
+      const statIncrease = 3;
+      
+      const battleLog = JSON.parse(playerData.battle_log || '[]');
+      battleLog.push({
+        enemy: currentEnemy.name,
+        level: newLevel,
+        date: new Date().toISOString(),
+        anxiety: battleState.anxiety,
+        hope: battleState.hope
+      });
+      
+      try {
+        const result = await window.dataSdk.update({
+          ...playerData,
+          player_level: newLevel,
+          empathy: playerData.empathy + statIncrease,
+          insight: playerData.insight + statIncrease,
+          recovery: playerData.recovery + statIncrease,
+          influence: playerData.influence + statIncrease,
+          anxiety_level: battleState.anxiety,
+          hope_level: battleState.hope,
+          confidence_level: Math.min(100, playerData.confidence_level + 10),
+          battle_log: JSON.stringify(battleLog)
+        });
+        
+        if (result.isOk) {
+          console.log('Battle result saved successfully');
+        } else {
+          console.warn('Failed to save battle result, but continuing...');
+        }
+      } catch (error) {
+        console.error('Error saving battle result:', error);
+      }
+      
+      // 結果画面へ遷移（セーブ成否に関わらず）
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      currentScene = 'result';
+      isProcessing = false;
+      renderCurrentScene();
+    }
+
+    async function executeSkill(skill) {
+      if (isProcessing) {
+        console.log('Already processing, skipping...');
+        return;
+      }
+      
+      console.log('Starting skill execution:', skill.name);
+      isProcessing = true;
+      
+      try {
+        // 効果音を再生
+        try {
+          if (skill.soundType === 'attack') {
+            playAttackSound();
+          } else if (skill.soundType === 'magic') {
+            playMagicSound();
+          } else if (skill.soundType === 'defense') {
+            playDefenseSound();
+          }
+        } catch (audioError) {
+          console.warn('Audio playback failed:', audioError);
+        }
+        
+        const enemySprite = document.getElementById('enemy-sprite');
+        const playerSprite = document.getElementById('player-sprite');
+        const buttons = document.querySelectorAll('.skill-card-btn, #auto-attack-btn');
+        const dialogue = document.getElementById('dialogue-window');
+        
+        // ボタンを即座に無効化
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          btn.style.pointerEvents = 'none';
+        });
+        
+        // プレイヤーが攻撃するアニメーション
+        if (playerSprite) {
+          playerSprite.classList.add('attack-effect');
+        }
+        
+        // 敵がダメージを受けるアニメーション
+        if (enemySprite) {
+          setTimeout(() => {
+            enemySprite.classList.add('damage-effect');
+          }, 200);
+        }
+        
+        let damage = skill.damage;
+        let anxietyChange = 0;
+        let hopeChange = 0;
+        
+        const isWeakness = skill.type === currentEnemy.weakness;
+        
+        if (isWeakness) {
+          damage = Math.floor(damage * 1.5);
+          anxietyChange = -15;
+          hopeChange = 15;
+        } else {
+          anxietyChange = -5;
+          hopeChange = 5;
+        }
+        
+        // スキル固有効果
+        if (skill.effect && skill.effect.includes('回復')) {
+          hopeChange += 20;
+        }
+        if (skill.effect && (skill.effect.includes('バリア') || skill.effect.includes('シールド'))) {
+          battleState.shield = 30;
+        }
+        if (skill.effect && skill.effect.includes('カウンター')) {
+          battleState.counter = true;
+        }
+        
+        // スキル効果表示
+        if (dialogue) {
+          const config = getConfig();
+          const baseSize = config.font_size || defaultConfig.font_size;
+          const tierColors = {
+            1: '#10b981'
+          };
+          
+          dialogue.innerHTML = `
+            <div class="text-center space-y-2">
+              <div style="font-size: ${baseSize * 2}px;">${skill.icon}</div>
+              <p style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                ${skill.name}
+              </p>
+              <p style="font-size: ${baseSize * 1.5}px; font-weight: bold; color: ${tierColors[skill.tier]};">
+                ${damage} ダメージ！
+              </p>
+              ${isWeakness ? `<p style="font-size: ${baseSize}px; color: #f59e0b;">✨ 弱点をついた！</p>` : ''}
+            </div>
+          `;
+          dialogue.classList.add('pulse-effect');
+        }
+        
+        // ステート更新
+        battleState.enemyHp = Math.max(0, battleState.enemyHp - damage);
+        battleState.anxiety = Math.max(0, Math.min(100, battleState.anxiety + anxietyChange));
+        battleState.hope = Math.max(0, Math.min(100, battleState.hope + hopeChange));
+        battleState.turn++;
+        
+        console.log('Battle state updated:', {
+          enemyHp: battleState.enemyHp,
+          anxiety: battleState.anxiety,
+          hope: battleState.hope
+        });
+        
+        // HPバーアニメーション
+        const hpBar = document.getElementById('hp-bar');
+        if (hpBar) {
+          const hpPercent = (battleState.enemyHp / battleState.enemyMaxHp) * 100;
+          hpBar.style.width = `${hpPercent}%`;
+        }
+        
+        // アニメーション完了を待つ
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        if (playerSprite) {
+          playerSprite.classList.remove('attack-effect');
+        }
+        if (enemySprite) {
+          enemySprite.classList.remove('damage-effect');
+        }
+        if (dialogue) {
+          dialogue.classList.remove('pulse-effect');
+        }
+        
+        // 勝利判定
+        if (battleState.enemyHp <= 0) {
+          console.log('Enemy defeated, saving result...');
+          await saveBattleResultAndShowResult();
+          return; // 処理完了後は即座にreturn
+        }
+        
+        // 次のターンへ
+        console.log('Continuing to next turn...');
+        isProcessing = false;
+        renderCurrentScene();
+        
+      } catch (error) {
+        console.error('Critical error in executeSkill:', error);
+        isProcessing = false;
+        
+        // エラー時も画面を再描画して復旧を試みる
+        try {
+          renderCurrentScene();
+        } catch (renderError) {
+          console.error('Failed to recover from error:', renderError);
+          // 最悪の場合はストーリー画面に戻る
+          currentScene = 'story-intro';
+          renderCurrentScene();
+        }
+      }
+    }
+
+    function renderResultScreen(app, config) {
+      if (!playerData) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      // 勝利BGM再生
+      playVictoryBgm();
+      
+      app.innerHTML = `
+        <div id="result-screen" class="h-full w-full flex flex-col items-center justify-center p-8 fade-in cursor-pointer"
+             style="background: linear-gradient(180deg, ${config.primary_action_color || defaultConfig.primary_action_color}30 0%, ${config.background_color || defaultConfig.background_color} 100%);
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="w-full max-w-md text-center space-y-6 pointer-events-none">
+            <div class="slide-up">
+              <div class="text-6xl mb-4">✨</div>
+              <h2 style="font-size: ${baseSize * 2}px; font-weight: bold;">
+                理解を得た
+              </h2>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl slide-up" style="animation-delay: 0.3s;">
+              <p class="mb-4" style="font-size: ${baseSize * 1.5}px; font-weight: bold;">
+                Lv.${playerData.player_level - 1} → Lv.${playerData.player_level}
+              </p>
+              <div class="text-5xl">⬆️</div>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl slide-up space-y-4" style="animation-delay: 0.6s;">
+              <h3 style="font-size: ${baseSize * 1.2}px; font-weight: bold;">成長したステータス</h3>
+              <div class="grid grid-cols-2 gap-4" style="font-size: ${baseSize}px;">
+                <div class="space-y-1">
+                  <p>共感: ${playerData.empathy - 3} → ${playerData.empathy} 📈</p>
+                  <p>洞察: ${playerData.insight - 3} → ${playerData.insight} 📈</p>
+                </div>
+                <div class="space-y-1">
+                  <p>回復: ${playerData.recovery - 3} → ${playerData.recovery} 📈</p>
+                  <p>影響: ${playerData.influence - 3} → ${playerData.influence} 📈</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl slide-up" 
+                 style="animation-delay: 0.9s;
+                        font-size: ${baseSize * 0.95}px;
+                        line-height: 1.8;">
+              <p style="font-weight: bold; margin-bottom: 0.5rem;">対話が力に変わる</p>
+              <p>「${currentEnemy.name}」を理解したあなたは、</p>
+              <p>新たなスキルを習得し、さらに強くなった。</p>
+            </div>
+            
+            <div class="slide-up pt-4" style="animation-delay: 1.2s;">
+              <p style="font-size: ${baseSize * 0.9}px; opacity: 0.7;">
+                👆 タップして続ける
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('result-screen').addEventListener('click', () => {
+        currentEnemy = null;
+        currentScene = 'story-intro';
+        renderCurrentScene();
+      });
+    }
+
+    function renderEmotionLog(app, config) {
+      if (!playerData) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const battleLog = JSON.parse(playerData.battle_log || '[]');
+      
+      app.innerHTML = `
+        <div class="h-full w-full overflow-auto p-8 fade-in"
+             style="background: ${config.background_color || defaultConfig.background_color};
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="max-w-md mx-auto space-y-6">
+            <div class="text-center mb-6">
+              <h2 class="mb-2" style="font-size: ${baseSize * 2}px; font-weight: bold;">
+                📖 成長の記録
+              </h2>
+              <p style="font-size: ${baseSize}px; opacity: 0.8;">
+                ${playerData.player_name}の旅路
+              </p>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl slide-up">
+              <h3 class="mb-4" style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                現在の状態 (Lv.${playerData.player_level})
+              </h3>
+              <div class="space-y-3" style="font-size: ${baseSize * 0.9}px;">
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span>😰 不安</span>
+                    <span>${playerData.anxiety_level}%</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full overflow-hidden" 
+                       style="background: ${config.surface_color || defaultConfig.surface_color};">
+                    <div class="h-full" style="width: ${playerData.anxiety_level}%; background: #ef4444;"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span>✨ 希望</span>
+                    <span>${playerData.hope_level}%</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full overflow-hidden" 
+                       style="background: ${config.surface_color || defaultConfig.surface_color};">
+                    <div class="h-full" style="width: ${playerData.hope_level}%; background: #10b981;"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span>💪 自信</span>
+                    <span>${playerData.confidence_level}%</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full overflow-hidden" 
+                       style="background: ${config.surface_color || defaultConfig.surface_color};">
+                    <div class="h-full" style="width: ${playerData.confidence_level}%; background: ${config.primary_action_color || defaultConfig.primary_action_color};"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="space-y-4">
+              <h3 style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                戦いの記録
+              </h3>
+              ${battleLog.length === 0 ? `
+                <div class="dialogue-box p-6 rounded-2xl text-center" 
+                     style="font-size: ${baseSize * 0.9}px; opacity: 0.7;">
+                  まだ記録がありません
+                </div>
+              ` : battleLog.slice().reverse().map((log, index) => `
+                <div class="dialogue-box p-4 rounded-2xl slide-up" 
+                     style="animation-delay: ${index * 0.1}s;">
+                  <div class="flex justify-between items-center mb-2">
+                    <h4 style="font-size: ${baseSize * 1.1}px; font-weight: bold;">
+                      ${log.enemy}
+                    </h4>
+                    <span style="font-size: ${baseSize * 0.85}px; opacity: 0.7;">
+                      Lv.${log.level}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3" style="font-size: ${baseSize * 0.85}px;">
+                    <p>不安: ${log.anxiety}%</p>
+                    <p>希望: ${log.hope}%</p>
+                  </div>
+                  <p class="mt-2" style="font-size: ${baseSize * 0.75}px; opacity: 0.6;">
+                    ${new Date(log.date).toLocaleDateString('ja-JP')}
+                  </p>
+                </div>
+              `).join('')}
+            </div>
+            
+            <button id="back-btn" 
+                    class="w-full py-4 px-8 rounded-2xl font-bold"
+                    style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                           color: ${config.text_color || defaultConfig.text_color};
+                           font-size: ${baseSize * 1.1}px;">
+              戻る
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('back-btn').addEventListener('click', () => {
+        currentScene = 'story-intro';
+        renderCurrentScene();
+      });
+    }
+
+    function renderEnding(app, config) {
+      if (!playerData) return;
+      
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      let endingType = 'growth';
+      let endingTitle = '成長のエンディング';
+      let endingMessage = 'あなたは多くの葛藤と向き合い、それらを理解した。';
+      
+      if (playerData.anxiety_level < 30 && playerData.hope_level > 70) {
+        endingType = 'hope';
+        endingTitle = '希望の夜明け';
+        endingMessage = 'かつての不安は、今や行動への原動力となった。';
+      } else if (playerData.confidence_level > 80) {
+        endingType = 'confidence';
+        endingTitle = '自信の獲得';
+        endingMessage = 'あなたは自分の価値を、自分で決められるようになった。';
+      }
+      
+      app.innerHTML = `
+        <div class="h-full w-full overflow-auto fade-in"
+             style="background: linear-gradient(180deg, #1a1a3e 0%, ${config.primary_action_color || defaultConfig.primary_action_color}20 50%, ${config.background_color || defaultConfig.background_color} 100%);
+                    color: ${config.text_color || defaultConfig.text_color};
+                    font-family: ${config.font_family || defaultConfig.font_family}, sans-serif;">
+          
+          <div class="min-h-full w-full flex flex-col items-center justify-center p-8 py-12">
+          <div class="w-full max-w-md text-center space-y-8">
+            <div class="text-7xl slide-up">
+              ${endingType === 'hope' ? '🌅' : endingType === 'confidence' ? '⭐' : '🌟'}
+            </div>
+            
+            <div class="slide-up" style="animation-delay: 0.3s;">
+              <h2 class="gradient-text mb-3" 
+                  style="font-size: ${baseSize * 2.2}px; font-weight: bold;">
+                ${endingTitle}
+              </h2>
+              <p style="font-size: ${baseSize * 1.1}px; opacity: 0.9;">
+                Lv.${playerData.player_level} ${playerData.player_name}
+              </p>
+            </div>
+            
+            <div class="dialogue-box p-8 rounded-3xl slide-up space-y-4" 
+                 style="animation-delay: 0.6s;
+                        font-size: ${baseSize * 0.95}px;
+                        line-height: 2;">
+              <p>${endingMessage}</p>
+              <p>キャリアの旅路に、終わりはない。</p>
+              <p>しかし今、あなたは確かに</p>
+              <p class="text-center pt-2" style="font-size: ${baseSize * 1.3}px; font-weight: bold;">
+                前に進む力を持っている
+              </p>
+            </div>
+            
+            <div class="dialogue-box p-6 rounded-3xl slide-up" 
+                 style="animation-delay: 0.9s;">
+              <h3 class="mb-4" style="font-size: ${baseSize * 1.2}px; font-weight: bold;">
+                最終ステータス
+              </h3>
+              <div class="grid grid-cols-2 gap-4" style="font-size: ${baseSize}px;">
+                <div>共感: ${playerData.empathy}</div>
+                <div>洞察: ${playerData.insight}</div>
+                <div>回復: ${playerData.recovery}</div>
+                <div>影響: ${playerData.influence}</div>
+              </div>
+            </div>
+            
+            <div class="space-y-4 slide-up" style="animation-delay: 1.2s;">
+              <button id="log-btn" 
+                      class="w-full py-4 px-8 rounded-2xl font-bold"
+                      style="background: ${config.primary_action_color || defaultConfig.primary_action_color};
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 1.1}px;">
+                📖 旅路を振り返る
+              </button>
+              
+              <button id="title-btn" 
+                      class="w-full py-3 px-8 rounded-2xl font-bold"
+                      style="background: transparent;
+                             border: 2px solid ${config.secondary_action_color || defaultConfig.secondary_action_color};
+                             color: ${config.text_color || defaultConfig.text_color};
+                             font-size: ${baseSize * 0.95}px;">
+                タイトルへ戻る
+              </button>
+            </div>
+          </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('log-btn').addEventListener('click', () => {
+        currentScene = 'emotion-log';
+        renderCurrentScene();
+      });
+
+      document.getElementById('title-btn').addEventListener('click', () => {
+        currentScene = 'title';
+        renderCurrentScene();
+      });
+    }
+
+    initializeSDKs().then(() => {
+      renderCurrentScene();
+    });
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b89dcb7f55c3bb3',t:'MTc2NzUyMDU0Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
