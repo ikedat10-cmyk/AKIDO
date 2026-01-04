@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f2f2f7">
+    <title>Talkary - 声でつくる日記</title>
+    
+    <!-- React, Babel, Tailwind, Axios -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+            background-color: #f8f9fa;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+
+        .diary-font { font-family: 'Noto Serif JP', serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .recording-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        .speaking-pulse {
+            animation: pulse-green 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        .safe-pt { padding-top: env(safe-area-inset-top); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // The execution environment provides the key at runtime.
+        const apiKey = ""; 
+        const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+
+        const PROMPTS = {
+            female: "あなたは慈愛に満ちた優しい女性カウンセラーです。🌸。親しみやすく、癒やしを与える声で話してください。質問は必ず一つずつ行い、ユーザーの話を引き出してください。",
+            male: "あなたは穏やかな男性カウンセラーです。☕。包容力のある落ち着いた声で話してください。ユーザーに安心感を与え、会話をリードしてください。",
+            writer: "プロのエッセイストとして、以下の会話ログから文学的な日記を一人称で作成してください。400文字程度。タイトルは不要。"
+        };
+
+        const VOICES = {
+            female: "Kore",
+            male: "Puck"
+        };
+
+        // PCM(Little Endian 16bit)をWAVに変換
+        function pcmToWav(pcmBase64, sampleRate = 24000) {
+            const binaryString = window.atob(pcmBase64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const pcmData = new Int16Array(bytes.buffer);
+
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); 
+            view.setUint16(22, 1, true); 
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, pcmData.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++, offset += 2) {
+                view.setInt16(offset, pcmData[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        const DiaryCanvas = ({ content, date }) => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                const width = Math.min(window.innerWidth - 40, 380);
+                const height = width * 1.4;
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                ctx.scale(dpr, dpr);
+                canvas.style.width = `${width}px`;
+                canvas.style.height = `${height}px`;
+
+                ctx.fillStyle = '#fffdf5';
+                ctx.fillRect(0, 0, width, height);
+                ctx.strokeStyle = '#e8dec9';
+                ctx.lineWidth = 1;
+                const pad = 30, step = 30;
+                for(let y = pad + 60; y < height - pad; y += step) {
+                    ctx.moveTo(pad, y); ctx.lineTo(width - pad, y);
+                }
+                ctx.stroke();
+                ctx.fillStyle = '#3a3530';
+                ctx.font = '16px serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(date, width - pad, pad + 30);
+                ctx.textAlign = 'left';
+                const maxWidth = width - pad * 2;
+                const words = content.split('');
+                let line = '', y = pad + 82;
+                words.forEach(char => {
+                    if (char === '\n') { ctx.fillText(line, pad, y); line = ''; y += step * 1.2; return; }
+                    if (ctx.measureText(line + char).width > maxWidth) { ctx.fillText(line, pad, y); line = char; y += step; }
+                    else { line += char; }
+                });
+                ctx.fillText(line, pad, y);
+            }, [content]);
+            return <canvas ref={canvasRef} className="rounded-xl shadow-2xl mx-auto border border-amber-100" />;
+        };
+
+        function App() {
+            const [scene, setScene] = useState('select'); 
+            const [counselor, setCounselor] = useState(null);
+            const [messages, setMessages] = useState([]);
+            const [isRecording, setIsRecording] = useState(false);
+            const [isSpeaking, setIsSpeaking] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const [diary, setDiary] = useState('');
+            const [errorMsg, setErrorMsg] = useState('');
+
+            const recognitionRef = useRef(null);
+            const audioRef = useRef(new Audio());
+            const chatEndRef = useRef(null);
+
+            useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            useEffect(() => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    const rec = new SpeechRecognition();
+                    rec.lang = 'ja-JP';
+                    rec.interimResults = false;
+                    rec.continuous = false;
+                    rec.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        handleSendMessage(transcript);
+                    };
+                    rec.onend = () => setIsRecording(false);
+                    rec.onerror = (e) => {
+                        console.error('Speech recognition error', e);
+                        setIsRecording(false);
+                    };
+                    recognitionRef.current = rec;
+                }
+            }, []);
+
+            const fetchWithRetry = async (url, payload, retries = 5) => {
+                let delay = 1000;
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await axios.post(url, payload);
+                        return response.data;
+                    } catch (error) {
+                        if (i === retries - 1) throw error;
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    }
+                }
+            };
+
+            const callTextAPI = async (msgs, systemPrompt) => {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`;
+                const contents = msgs.map(m => ({
+                    role: m.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: m.content }]
+                }));
+                const payload = {
+                    contents,
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+                const data = await fetchWithRetry(url, payload);
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("Empty response from AI");
+                return text;
+            };
+
+            const callTTSAPI = async (text, voiceName) => {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName } }
+                        }
+                    },
+                    model: TTS_MODEL
+                };
+                const data = await fetchWithRetry(url, payload);
+                return data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            };
+
+            const playAudio = async (base64) => {
+                setIsSpeaking(true);
+                try {
+                    const wavBlob = pcmToWav(base64);
+                    const url = URL.createObjectURL(wavBlob);
+                    audioRef.current.src = url;
+                    audioRef.current.onended = () => {
+                        setIsSpeaking(false);
+                        URL.revokeObjectURL(url);
+                    };
+                    await audioRef.current.play();
+                } catch (e) {
+                    console.error("Audio playback failed", e);
+                    setIsSpeaking(false);
+                }
+            };
+
+            const toggleRecording = () => {
+                if (isSpeaking) {
+                    audioRef.current.pause();
+                    setIsSpeaking(false);
+                    return;
+                }
+                
+                audioRef.current.play().catch(() => {});
+                audioRef.current.pause();
+
+                if (isRecording) {
+                    recognitionRef.current?.stop();
+                } else {
+                    setErrorMsg('');
+                    setIsRecording(true);
+                    try {
+                        recognitionRef.current?.start();
+                    } catch (e) {
+                        console.error(e);
+                        setIsRecording(false);
+                    }
+                }
+            };
+
+            const handleSendMessage = async (text) => {
+                const newMsgs = [...messages, { role: 'user', content: text }];
+                setMessages(newMsgs);
+                setLoading(true);
+                setErrorMsg('');
+                try {
+                    const reply = await callTextAPI(newMsgs, PROMPTS[counselor]);
+                    setMessages([...newMsgs, { role: 'assistant', content: reply }]);
+                    
+                    const audioBase64 = await callTTSAPI(reply, VOICES[counselor]);
+                    if (audioBase64) {
+                        await playAudio(audioBase64);
+                    }
+                } catch (e) {
+                    console.error(e);
+                    setErrorMsg("接続に失敗しました。もう一度お話しいただけますか？");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const generateDiary = async () => {
+                setLoading(true);
+                setErrorMsg('');
+                try {
+                    const log = messages.map(m => `${m.role}: ${m.content}`).join("\n");
+                    const essay = await callTextAPI([{ role: "user", content: log }], PROMPTS.writer);
+                    setDiary(essay);
+                    setScene('result');
+                } catch (e) {
+                    console.error(e);
+                    setErrorMsg("日記の作成に失敗しました。");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (scene === 'select') {
+                return (
+                    <div className="flex flex-col h-screen px-6 pt-24 gap-8 bg-blue-50/30 fade-in">
+                        <div className="text-center">
+                            <h1 className="text-4xl font-black text-slate-800">Talkary</h1>
+                            <p className="text-slate-400 mt-2 font-medium">声で話して、日記をつくる</p>
+                        </div>
+                        <div className="grid gap-4">
+                            <button onClick={() => { setCounselor('female'); setMessages([{role:'assistant', content:'おかえりなさい！今日はどんな一日だった？🌸'}]); setScene('chat'); }} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 active:bg-blue-50 transition-colors">
+                                <span className="text-5xl">👩‍💼</span>
+                                <div className="text-left">
+                                    <p className="font-bold text-xl text-slate-700">優しいカウンセラー</p>
+                                    <p className="text-sm text-slate-400">親身に話を聞いてほしい時に</p>
+                                </div>
+                            </button>
+                            <button onClick={() => { setCounselor('male'); setMessages([{role:'assistant', content:'お疲れ様。何かあったかな、ゆっくり話そうか。☕'}]); setScene('chat'); }} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 active:bg-blue-50 transition-colors">
+                                <span className="text-5xl">👨‍💼</span>
+                                <div className="text-left">
+                                    <p className="font-bold text-xl text-slate-700">穏やかな先生</p>
+                                    <p className="text-sm text-slate-400">心を落ち着かせたい時に</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (scene === 'chat') {
+                return (
+                    <div className="flex flex-col h-screen bg-white overflow-hidden safe-pt">
+                        <div className="px-6 py-4 border-b flex justify-between items-center bg-white/80 backdrop-blur-md z-10">
+                            <button onClick={() => { audioRef.current.pause(); setScene('select'); }} className="text-slate-400 font-bold">終了</button>
+                            <button onClick={generateDiary} disabled={messages.length < 2 || loading} className="bg-green-500 text-white px-5 py-2 rounded-full font-bold text-sm shadow-md disabled:bg-gray-300">日記にする</button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-6 no-scrollbar pb-40">
+                            {messages.map((m, i) => (
+                                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
+                                    <div className={`max-w-[85%] px-5 py-4 rounded-[1.5rem] text-[17px] leading-relaxed shadow-sm ${m.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}`}>
+                                        {m.content}
+                                    </div>
+                                </div>
+                            ))}
+                            {loading && <div className="text-slate-300 animate-pulse text-sm">読み込み中...</div>}
+                            {errorMsg && <div className="bg-red-50 text-red-500 p-4 rounded-xl text-sm border border-red-100">{errorMsg}</div>}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        <div className="fixed bottom-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-10 pb-8 safe-pb flex flex-col items-center">
+                            <p className="text-xs text-slate-400 mb-4 font-bold tracking-widest h-4">
+                                {isSpeaking ? 'AIが話しています...' : (isRecording ? '聞き取り中...' : (loading ? '' : 'タップして話す'))}
+                            </p>
+                            <button 
+                                onClick={toggleRecording}
+                                disabled={loading}
+                                className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-2xl transition-all active:scale-90 
+                                ${isSpeaking ? 'bg-green-500 text-white speaking-pulse' : (isRecording ? 'bg-red-500 text-white recording-pulse' : 'bg-blue-600 text-white disabled:bg-gray-400')}`}
+                            >
+                                {isSpeaking ? '🔊' : (isRecording ? '■' : '🎤')}
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (scene === 'result') {
+                return (
+                    <div className="flex flex-col h-screen bg-slate-100 px-5 pt-16 pb-10 overflow-y-auto fade-in">
+                        <div className="max-w-md mx-auto w-full flex flex-col gap-8">
+                            <DiaryCanvas content={diary} date={new Date().toLocaleDateString('ja-JP')} />
+                            <div className="text-center">
+                                <p className="text-sm text-slate-400 mb-6 font-medium">素敵な日記ができましたね。<br/>今日もお疲れ様でした。</p>
+                                <button onClick={() => location.reload()} className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-transform">トップに戻る</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
